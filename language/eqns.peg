@@ -1,0 +1,83 @@
+# Pattern for blank space, includes
+# spaces, newlines, and comments 
+# that begin with a hash.
+skipper = \b([ \t\n\r]+|\#.*)*
+
+# An integer
+int = -?[0-9]+
+end = ([ \t]+|\#.*)*\r*\n
+keywords = to|default|if|then|else|end|begin|and|or
+bare_name = \b(?!D{keywords}\b)[A-Za-z][A-Za-z0-9]*
+
+# A name that isn't a keyword or operator
+name = \b(?![DO]|{keywords}\b)[A-Za-z][A-Za-z0-9]*
+bracket = \[ {expr} (, {expr} (, {expr} |)|)\]
+
+# C-identifier
+lower_index = ({index_symbol}|\({index_expr}(,{index_expr})*\))
+upper_index = ({index_symbol}|\({index_expr}(,{index_expr})*\))
+indices = (\_{lower_index}+|\^{upper_index}+)*
+
+# Indexes can be single letters with primes, or digits
+index_symbol = [a-zA-Z]'*|[0-9]
+index_op = [+-]
+index_expr = {index_symbol}({index_op}{int}|)
+tensor = {name}{indices}( {bracket}|)
+
+# Tensor name
+tname = {tensor}|{name}
+dname = [DO][a-z0-9]*
+dtensor = {dname}{indices}? {tensor}
+
+# Parse a floating point number
+number = -?[0-9]+(\.[0-9]*|)([eEdD][+-]?[0-9]+|)
+
+# Supported function names
+fname = (a?sinh?|a?cosh?|a?tanh?|pow|exp|log|min|max|copysign|abs)
+
+# A function call
+func = {fname} \( ({expr}( , {expr})*|) \)
+
+neg = -
+
+# A value
+value = {neg}?({func}|{dtensor}|{tensor}|{number}|{ifexpr}|\( {expr} \))
+
+# Powers
+pow = {neg}?{value}( \*\* {value}|)
+
+# multiplication / division expression
+mulop = [*/%]
+mulimp = [ \t]*(?!-)
+mul = {pow}( {mulop} {pow}|{mulimp}{pow})*
+
+# addition / subtraction expression
+addop = [+-]
+expr = {mul}( {addop} {mul})*
+
+# Compare expression
+cmpop = (<=?|>=?|==|!=)
+coexpr = {expr} {cmpop} {expr}|\( {cexpr} \)
+
+# Logical operation
+logop = and|or
+
+# Conditional expression
+cexpr = {coexpr}( {logop} {coexpr})*
+
+# For step functions, etc.
+ifexpr = if {cexpr} then {expr} else {expr} 
+
+# Differential name plus indices
+doper = {dname}{indices}
+
+# Differential equations
+deqn = {doper} {bare_name} \= {expr}{-end}
+deqns = {deqn}( {deqn})*
+
+# One or more equations
+eqn = ({dtensor}|{tensor}) \= {expr}{-end}
+
+# The last group in the file is the default
+# rule to use first in parsing.
+eqns = {eqn}( {eqn})*
